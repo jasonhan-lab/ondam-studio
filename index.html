@@ -18,8 +18,8 @@
     <div class="hero-copy">
       <p class="eyebrow">DAILY PAY, MADE CLEAR</p>
       <h1 id="page-title">오늘 일한 급여,<br /><span>한눈에 확인해요.</span></h1>
-      <p class="hero-description">급여 조건을 정리하고 예상 공제 항목과 신고 준비 내용을 확인하세요.<br class="desktop-only" /> 정확한 금액과 신고 기준은 검증 후 제공됩니다.</p>
-      <div class="hero-meta"><span class="meta-icon" aria-hidden="true">ⓘ</span> 예시 화면 · 계산 및 세무 기준 검토 전</div>
+      <p class="hero-description">급여 조건을 정리하고 예상 공제 항목과 신고 준비 내용을 확인하세요.<br class="desktop-only" /> 소득세와 지방소득세를 계산합니다.</p>
+      <div class="hero-meta"><span class="meta-icon" aria-hidden="true">ⓘ</span> 2026년 일용근로소득 원천징수</div>
     </div>
     <div class="hero-art" aria-hidden="true">
       <div class="art-orbit orbit-one"></div><div class="art-orbit orbit-two"></div>
@@ -32,60 +32,24 @@
     <a class="step active" href="#input"><span class="step-number">01</span><span>급여 조건 입력</span></a>
     <span class="step-line" aria-hidden="true"></span>
     <a class="step" href="#result"><span class="step-number">02</span><span>예상 결과 확인</span></a>
-    <span class="step-line" aria-hidden="true"></span>
-    <a class="step" href="#filing"><span class="step-number">03</span><span>신고 안내 보기</span></a>
+
   </nav>
 
   <section class="content-section input-section" id="input">
     <div class="section-heading">
-      <div><p class="section-kicker">STEP 01 · PAY DETAILS</p><h2 id="input-title">급여 조건을 알려주세요</h2><p class="section-subtitle">확정되지 않은 항목은 선택 가능한 예시값으로 표시했어요.</p></div>
-      <span class="required-note"><span aria-hidden="true">*</span> 필수 입력 예시</span>
+      <div><p class="section-kicker">STEP 01 · PAY DETAILS</p><h2 id="input-title">급여 조건을 알려주세요</h2><p class="section-subtitle">하루 급여와 일한 일수만 입력하세요.</p></div>
+      <span class="required-note"><span aria-hidden="true">*</span> 간편 계산</span>
     </div>
     <div class="input-layout">
-      <div class="form-card">
-        <div class="field-grid">
-          <div class="field field-wide">
-            <label>급여 총액 <span class="required">*</span></label>
-            <div class="input-with-unit"><input id="gross-pay" type="text" placeholder="예: 150,000" /><span>원</span></div>
-            <small id="pay-help">세전 / 세후 여부를 선택해 주세요.</small>
-          </div>
-          <div class="field">
-            <label>입력 금액 기준 <span class="required">*</span></label>
-            
-          </div>
-          <div class="field">
-            <label>급여 기간 <span class="required">*</span></label>
-            
-          </div>
-          <div class="field">
-            <label>근무 일수</label>
-            <div class="input-with-unit"><input id="work-days" type="text" placeholder="예: 1" /><span>일</span></div>
-          </div>
-          <div class="field">
-            <label>근무 시간</label>
-            <div class="input-with-unit"><input id="work-hours" type="text" placeholder="예: 8" /><span>시간</span></div>
-          </div>
-          <div class="field field-wide">
-            <label>근로 형태 확인 <span class="required">*</span></label>
-            
-            <small>계약·근무 실태에 따라 적용 기준이 달라질 수 있어요.</small>
-          </div>
-        </div>
-        <div class="form-footer"><p><span aria-hidden="true">🔒</span> 입력 예시 화면이며, 정보 저장·전송 기능은 제공하지 않습니다.</p><span class="button button-disabled">예상 금액 확인 <span aria-hidden="true">→</span></span></div>
-      </div>
-      <aside class="side-note">
-        <div class="note-icon" aria-hidden="true">✳</div>
-        <h3>먼저 확인해 주세요</h3>
-        <ul><li>총액이 세전인지 세후인지</li><li>급여가 어느 기간에 대한 금액인지</li><li>근무 일수와 실제 근무 시간</li><li>근로 형태가 일용근로에 해당하는지</li></ul>
-        <p>조건이 충분하지 않으면 계산 결과 대신 확인이 필요한 항목을 안내합니다.</p>
-      </aside>
+      <div class="form-card"><div class="field-grid"></div></div>
+
     </div>
   </section>
 
   <section class="content-section result-section" id="result">
     <div class="section-heading result-heading">
-      <div><p class="section-kicker">STEP 02 · ESTIMATE</p><h2 id="result-title">예상 급여 결과</h2><p class="section-subtitle">아래는 결과 화면의 예시입니다. 실제 세액은 계산되지 않습니다.</p></div>
-      <span class="estimate-badge">예상 · 검증 전</span>
+      <div><p class="section-kicker">STEP 02 · ESTIMATE</p><h2 id="result-title">원천징수 계산 결과</h2><p class="section-subtitle">지급 묶음별 소득세와 지방소득세를 계산합니다.</p></div>
+      <span class="estimate-badge">공식 사례 대조</span>
     </div>
     <div class="result-card">
       <div class="take-home">
@@ -93,55 +57,13 @@
         <strong>— <small>원</small></strong>
         <span class="result-caption">급여 조건 입력 후 표시</span>
       </div>
-      <div class="deduction-list" aria-label="예상 공제 항목">
-        <div class="deduction-row"><span>급여 총액 기준 금액</span><strong>— 원</strong></div>
-        <div class="deduction-row"><span>소득세 산식 검토 필요</span><strong>— 원</strong></div>
-        <div class="deduction-row"><span>지방소득세 적용 조건 검토 필요</span><strong>— 원</strong></div>
-        <div class="deduction-row"><span>사회보험료 해당 여부 확인 필요</span><strong>— 원</strong></div>
-        <div class="deduction-row total-row"><span>예상 공제 합계</span><strong>— 원</strong></div>
-      </div>
+      <div class="deduction-list" aria-label="세금 계산 결과"></div>
     </div>
     <div class="notice-bar"><span class="notice-symbol" aria-hidden="true">!</span><p><strong>계산 조건이 부족해요.</strong> 세전·세후 기준, 기간, 근무 정보와 근로 형태를 확인하면 결과를 안내할 수 있어요.</p><span class="notice-tag">상태 예시</span></div>
-    <div class="state-grid" aria-label="입력 및 계산 상태 예시">
-      <article class="state-card error-state"><span class="state-label"><span class="state-dot"></span> 입력 오류 예시</span><h3>급여 총액을 확인해 주세요</h3><p>숫자와 금액 단위를 확인하고 다시 입력해 주세요.</p></article>
-      <article class="state-card wait-state"><span class="state-label"><span class="state-dot"></span> 조건 부족 예시</span><h3>필수 조건이 더 필요해요</h3><p>세전·세후 여부와 급여 기간을 선택해 주세요.</p></article>
-      <article class="state-card review-state"><span class="state-label"><span class="state-dot"></span> 근로 형태 확인</span><h3>일용근로 해당 여부 확인 필요</h3><p>근로계약과 실제 근무 형태를 검토한 뒤 계산 기준을 결정해요.</p></article>
-    </div>
-    <p class="basis-disclaimer"><strong>적용 기준일:</strong> [공식 기준 검증 후 입력] <span>세액 산식·지방소득세·사회보험 적용 조건은 전문가 및 공식 자료 검토 전이며, 본 화면은 세무 신고 또는 지급액 확정의 근거가 아닙니다.</span></p>
+    <p class="basis-disclaimer"><strong>적용 기준일:</strong> 2026-10-23 <span>소득세·지방소득세 공제 후 금액입니다. 사회보험 등 다른 공제는 포함하지 않습니다.</span></p>
   </section>
 
-  <section class="content-section filing-section" id="filing">
-    <div class="section-heading">
-      <div><p class="section-kicker">STEP 03 · FILING GUIDE</p><h2 id="filing-title">지급 후 신고 준비하기</h2><p class="section-subtitle">세금 신고와 지급 자료 제출은 각각 확인할 수 있도록 나눴어요.</p></div>
-      <span class="review-badge">내용 검증 필요</span>
-    </div>
-    <div class="filing-grid">
-      <article class="filing-card">
-        <div class="filing-top"><span class="filing-icon tax-icon" aria-hidden="true">₩</span><span class="filing-index">GUIDE 01</span></div>
-        <h3>원천징수 신고·납부</h3>
-        <p class="filing-intro">원천징수 대상 및 신고·납부 방법을 확인하는 영역</p>
-        <div class="guide-placeholder"><span>안내 내용</span><strong>[공식 절차 검증 후 입력]</strong><span>신고 주체 · 경로 · 납부 방법</span></div>
-        <div class="guide-meta"><span>신고·납부 기한</span><strong>[기한 검증 필요]</strong></div>
-      </article>
-      <article class="filing-card">
-        <div class="filing-top"><span class="filing-icon document-icon" aria-hidden="true">▤</span><span class="filing-index">GUIDE 02</span></div>
-        <h3>지급명세서 제출</h3>
-        <p class="filing-intro">지급 내역의 제출 대상과 자료 준비를 확인하는 영역</p>
-        <div class="guide-placeholder"><span>안내 내용</span><strong>[대상·제출 절차 검증 후 입력]</strong><span>필요 자료 · 제출 방법</span></div>
-        <div class="guide-meta"><span>제출 기한</span><strong>[기한 검증 필요]</strong></div>
-      </article>
-    </div>
-    <div class="filing-footnote"><span aria-hidden="true">ⓘ</span><p>신고 대상, 절차, 제출 서류 및 기한은 관계자의 상황과 최신 공식 기준을 확인한 뒤 확정해야 합니다. 미검증 정보는 안내 문구로 게시하지 않습니다.</p></div>
-  </section>
-
-  <section class="mobile-preview">
-    <div class="mobile-copy"><p class="section-kicker">DESIGNED FOR SMALL SCREENS</p><h2 id="mobile-title">작은 화면에서도<br />복잡하지 않게</h2><p>한 손으로 입력하고, 핵심 결과와 다음 안내를 차례로 확인하는 모바일 구성입니다.</p><ul><li>한 열로 이어지는 입력 필드</li><li>금액과 공제 항목을 분리해 표시</li><li>주의·오류 상태를 색과 문구로 함께 전달</li></ul></div>
-    <div class="phone" aria-label="모바일 화면 레이아웃 예시">
-      <div class="phone-speaker"></div><div class="phone-screen"><div class="phone-top"><span class="mini-brand">ㅎ 하루급여</span><span class="mini-menu">•••</span></div><div class="phone-progress"></div><span class="phone-step">STEP 01 / 03</span><h3>급여 조건을<br />입력해 주세요</h3><span class="phone-label">급여 총액</span><div class="phone-field">금액 입력 원</div><span class="phone-label">입력 금액 기준</span><div class="phone-field muted">선택해 주세요 ⌄</div><div class="phone-alert">ⓘ 세전·세후와 기간을 확인해 주세요.</div><span class="phone-cta">예상 금액 확인　→</span><span class="phone-bottom-note">계산 기준 검증 전 · 예시 화면</span></div>
-    </div>
-  </section>
-
-  <footer class="site-footer"><a class="brand footer-brand" href="#top"><span class="brand-mark" aria-hidden="true">ㅎ</span><span>하루급여</span></a><p>급여 확인은 명확하게, 신고 준비는 차근차근.</p><span class="footer-disclaimer">예시 디자인 · 세무 기준 및 계산 기능 미확정</span></footer>
+  <footer class="site-footer"><a class="brand footer-brand" href="#top"><span class="brand-mark" aria-hidden="true">ㅎ</span><span>하루급여</span></a><p>하루 급여와 일한 일수로 간편하게.</p><span class="footer-disclaimer">2026년 일용근로소득 원천징수</span></footer>
   <script type="module" src="./payroll-ui.mjs"></script>
 </main>
 

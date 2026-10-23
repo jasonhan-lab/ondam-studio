@@ -47,3 +47,19 @@ export function calculateLedger(input={}){
   return {ok:true,classification,bundles:results,totals,ruleId:taxRules.id,insuranceStatus:'별도 확인',finalNet:null};
  }catch(e){return {ok:false,error:e.message};}
 }
+
+/** Conditional illustration, not a payroll ledger: no fictitious dates or people. */
+export function calculateQuick(input={}){
+ if(!input||typeof input!=='object')return {ok:false,error:'금액과 일수를 입력해주세요.'};
+ const gross=wonInput(input.grossDailyPay),days=typeof input.workDays==='string'&&/^\d+$/.test(input.workDays)?Number(input.workDays):input.workDays;
+ const nonTaxable=wonInput(input.nonTaxableDailyPay??0),mode=input.paymentMode??'once';
+ if(gross===null||gross===0||!Number.isSafeInteger(days)||days<1||days>366||nonTaxable===null||!['once','daily'].includes(mode))return {ok:false,error:'하루 세전 급여와 일한 일수를 숫자로 입력해주세요. 일수는 1~366일입니다.'};
+ try{
+  const t=dailyTax(gross,nonTaxable),sum=t.taxNumerator*BigInt(days);
+  const n=mode==='once'?sum:t.taxNumerator;
+  const exempt=n<1000000n,perIncome=exempt?0:Number(n/10000n)*10,perLocal=Math.floor(perIncome/100)*10,multiplier=mode==='once'?1:days;
+  const incomeTax=perIncome*multiplier,localTax=perLocal*multiplier,total=gross*days;
+  if(!Number.isSafeInteger(total))throw Error('합계가 계산 범위를 초과했습니다.');
+  return {ok:true,kind:'conditional-calculation',grossDailyPay:gross,workDays:days,nonTaxableDailyPay:nonTaxable,paymentMode:mode,totals:{gross:total,incomeTax,localTax,netBeforeInsurance:total-incomeTax-localTax},dailyTax:Number(t.taxNumerator)/1000,unroundedTotal:Number(sum)/1000,smallCollectionApplied:exempt,ruleId:taxRules.id,assumption:'세법상 일용근로소득 해당을 전제로 한 세전 계산. 사회보험 등 다른 공제 제외. 실제 근무일·지급일 기록이 아님.'};
+ }catch(e){return {ok:false,error:e.message};}
+}
