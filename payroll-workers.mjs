@@ -27,7 +27,8 @@ export function loadWorkers(storage){
  const d={version:1,workers:[],history:[],confirmed:[]},rawLedger=storage.getItem('haru-payroll-2026-ledger-v1');
  if(rawLedger){let old;try{old=JSON.parse(rawLedger);}catch{throw Error('이전 근로자 자료를 읽을 수 없습니다. 원본을 보존했습니다.');}
   for(const revision of old.revisions??[])for(const row of revision.input?.rows??[]){if(!row.workerId)continue;let w=d.workers.find(w=>w.legacyId===row.workerId);if(!w){w={id:'legacy-'+d.workers.length,legacyId:row.workerId,name:row.workerName||'이전 근로자 '+(d.workers.length+1),setting:null};d.workers.push(w);}
-   const previous=row.employment??revision.input?.employment??revision.input?.insurance?.employment;
+   const insurance=revision.input?.insurance,legacyInsurance=insurance&&['eiDaily','eiCoveredWorkplace','eiExceptionsCleared'].some(k=>Object.hasOwn(insurance,k))?insurance:undefined;
+   const previous=row.employment??revision.input?.employment??insurance?.employment??legacyInsurance;
    if(previous){w.legacySetting=copy(previous);w.setting={...normalSetting(),exception:true,reason:'other',from:'2026-01-01',memo:'이전 예외 설정 보존. 원본과 적용기간 확인 필요.',outcome:'review'};}
   }
  }
