@@ -1,4 +1,4 @@
-import {calculateQuick} from './payroll-calculator.mjs';
+import {resolveQuick as calculateQuick} from './payroll-net.mjs';
 export const quickStorageKey='haru-payroll-quick-v1';
 export function loadQuick(storage){const raw=storage.getItem(quickStorageKey);if(!raw)return {version:1,calculations:[]};let d;try{d=JSON.parse(raw);}catch{throw Error('저장 기록을 읽지 못했습니다. 원본을 보존했습니다.');}if(d.version!==1||!Array.isArray(d.calculations)||d.calculations.length>100||d.calculations.some(c=>!c||!calculateQuick(c.input).ok))throw Error('저장 기록 형식이 맞지 않습니다. 원본을 보존했습니다.');return d;}
 export function saveQuick(storage,input,now=new Date().toISOString()){const result=calculateQuick(input);if(!result.ok)throw Error(result.error);const d=loadQuick(storage);if(d.calculations.length>=100)throw Error('100개를 저장했습니다. JSON으로 내보내 주세요.');const next={version:1,calculations:[...d.calculations,{savedAt:now,input,result}]};storage.setItem(quickStorageKey,JSON.stringify(next));return next;}
