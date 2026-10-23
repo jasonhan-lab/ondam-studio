@@ -19,3 +19,13 @@
 [hidden]{display:none!important}
 @media(max-width:650px){.calculation-details{padding:16px}.ledger-actions .button,.ledger-storage .button{flex:1 1 140px}.ledger-storage select{width:100%}.field-grid{grid-template-columns:minmax(0,1fr)}.take-home>strong{font-size:30px}}
 .quick-fields input{font-size:22px!important;font-weight:700;padding:18px!important}.quick-fields label{font-size:16px}.quick-help{font-size:13px;line-height:1.8;color:#64776d;margin:14px 0}.quick-options{margin-top:20px;border-top:1px solid #e1e8df;padding-top:18px}.quick-options summary{cursor:pointer;font-weight:700;font-size:14px;color:#476353}.quick-options .field-grid{margin-top:18px}.button{border:1px solid #b9cfc0;background:#f0f6ed;color:#245b47;border-radius:9px;padding:12px 16px;font:inherit;font-size:13px;cursor:pointer}.button:hover{background:#e1eede}.ledger-actions select{max-width:100%;padding:10px;border:1px solid #cdd9cb;border-radius:8px}.quick-fields{margin-bottom:12px}
+
+/* Worker settings: compact main controls, optional exceptions and readable audit. */
+.form-card>.field{margin-bottom:18px}
+.form-card>.field select,.quick-options>.field select,.quick-options>.field input{width:100%;padding:12px;border:1px solid #cdd9cb;border-radius:8px;background:#fff;color:#23493d;font:inherit;box-sizing:border-box}
+.quick-options>label{display:block;margin:16px 0;color:#344641;font-weight:600;line-height:1.65}
+.quick-options input[type=checkbox]{width:17px;height:17px;vertical-align:middle;accent-color:#245b48}
+.quick-options .field-grid{margin:16px 0}
+.quick-options pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px;background:#f1f5ed;padding:12px;border-radius:8px}
+.quick-options p,.deduction-row strong{overflow-wrap:anywhere}
+.deduction-row strong{max-width:66%}
