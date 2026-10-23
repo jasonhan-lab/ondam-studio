@@ -1,209 +1,59 @@
-import {deductionValue,bindCalculationInputs} from './payroll-ui-values.mjs';
-import {
-  calculateDailyIncomeTax,
-  assessNationalPension,
-  assessOtherInsurance,
-} from './payroll-calculator.mjs';
-
-const byId = (id) => document.getElementById(id);
-const numberField = (id, label, unit, placeholder = '예: 0') => {
-  const field = document.createElement('div');
-  field.className = 'field';
-  const caption = document.createElement('label');
-  caption.htmlFor = id;
-  caption.textContent = label;
-  const wrapper = document.createElement('div');
-  wrapper.className = 'input-with-unit';
-  const input = document.createElement('input');
-  input.id = id;
-  input.type = 'text';
-  input.inputMode = 'decimal';
-  input.placeholder = placeholder;
-  const suffix = document.createElement('span');
-  suffix.textContent = unit;
-  wrapper.append(input, suffix);
-  field.append(caption, wrapper);
-  return { field, input };
-};
-const selectControl = (id, label, options) => {
-  const field = document.createElement('div');
-  field.className = 'field';
-  const caption = document.createElement('label');
-  caption.htmlFor = id;
-  caption.textContent = label;
-  const select = document.createElement('select');
-  select.id = id;
-  for (const [value, text] of options) {
-    const option = document.createElement('option');
-    option.value = value;
-    option.textContent = text;
-    select.append(option);
+import {calculateLedger} from './payroll-calculator.mjs';
+import {assessInsurance} from './payroll-insurance.mjs';
+import {sources,taxRules} from './payroll-rules.mjs';
+import {saveLedger,loadLedger} from './payroll-storage.mjs';
+const $=id=>document.getElementById(id);
+const el=(tag,text,cls)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n;};
+const money=n=>new Intl.NumberFormat('ko-KR',{maximumFractionDigits:3}).format(n)+'원';
+function field(id,label,type='text',value=''){
+ const box=el('div',undefined,'field'),caption=el('label',label),input=el('input');caption.htmlFor=id;input.id=id;input.type=type;input.value=value;if(type==='text')input.autocomplete='off';box.append(caption,input);return box;
+}
+function select(id,label,options){const box=field(id,label),old=box.querySelector('input'),s=el('select');s.id=id;for(const [v,t]of options){const o=el('option',t);o.value=v;s.append(o);}old.replaceWith(s);return box;}
+function check(id,label){const box=el('label',undefined,'check-field'),input=el('input');input.type='checkbox';input.id=id;box.append(input,el('span',label));return box;}
+const button=(label,fn)=>{const b=el('button',label,'button');b.type='button';b.addEventListener('click',fn);return b;};
+function boolSelect(id,label){return select(id,label,[['','확인 필요'],['yes','예'],['no','아니요']]);}
+const stateLabel=s=>({'subject-under-entered-conditions':'입력 조건상 가입 대상','criteria-not-met':'입력 조건 문턱 미충족','subject-review-dates':'가입 대상 가능 · 취득·상실 확인 필요','criteria-not-met-review':'입력 기준 미충족 · 계속고용 이력 확인 필요','review-required':'확인 필요'}[s]??s);
+const columns=[['workDate','근무일','date'],['gross','급여 총액(원)','number'],['nonTaxable','비과세(원)','number'],['periodStart','귀속 시작','date'],['periodEnd','귀속 종료','date'],['paymentDate','실제 지급일','date'],['bundleId','지급 묶음 ID','text']];
+let tbody,resultBody,insuranceBody,history,savedStatus,ledgerInput;
+function addDay(row={}){const tr=el('tr');for(const [key,label,type]of columns){const td=el('td'),i=el('input');i.type=type;i.dataset.key=key;i.setAttribute('aria-label',label);i.value=row[key]??(key==='nonTaxable'?'0':'');if(type==='number'){i.min='0';i.step='1';}td.append(i);tr.append(td);}const td=el('td');td.append(button('제거',()=>{tr.remove();render();}));tr.append(td);tbody.append(tr);}
+function read(){return {incomeType:$('income-type').value,taxDailyConfirmed:$('tax-confirmed').checked,taxOccupation:$('tax-occupation').value,monthlySalary:$('monthly-salary').checked,longContract:$('long-contract').checked,payBasis:$('pay-basis').value,rows:[...tbody.rows].map(tr=>Object.fromEntries([['workerId',$('worker-id').value],['employerId',$('employer-id').value],...[...tr.querySelectorAll('[data-key]')].map(n=>[n.dataset.key,n.value])])),insurance:readInsurance()};}
+const bool=id=>$(id).value===''?undefined:$(id).value==='yes';
+function readInsurance(){return {month:$('insurance-month').value,monthlyDays:$('monthly-days').value,monthlyHours:$('monthly-hours').value,monthlyIncome:$('monthly-income').value,age:$('age').value,continuousMonth:bool('continuous-month'),construction:bool('construction'),allSitesIncluded:$('all-sites').checked,domesticOrdinary:$('insurance-ordinary').checked,assessedMonthlyIncome:$('assessed-income').value,healthMonthlyRemuneration:$('health-remuneration').value,eiDaily:bool('ei-daily'),eiCoveredWorkplace:bool('ei-workplace'),eiExceptionsCleared:$('ei-exceptions').checked,billed:Object.fromEntries(['pension','health','ltc','employment'].map(k=>[k,$('billed-'+k).value]))};}
+function pair(label,text){const n=el('div',undefined,'deduction-row');n.append(el('span',label),el('strong',text));return n;}
+function render(){
+ const input=read(),result=calculateLedger(input);resultBody.replaceChildren();const notice=document.querySelector('.notice-bar p');
+ const total=document.querySelector('.take-home > strong'),list=document.querySelector('.deduction-list');list.replaceChildren();
+ if(!result.ok){notice.textContent=result.error;total.textContent='—';resultBody.append(el('p',result.error));}
+ else{
+  notice.textContent='원천징수 계산 완료'+' · 사회보험은 별도 확인 중이어도 세액 계산은 유지됩니다.';
+  total.textContent=money(result.totals.netBeforeInsurance);
+  list.append(pair('급여 총액',money(result.totals.gross)),pair('소득세',money(result.totals.incomeTax)),pair('지방소득세',money(result.totals.localTax)),pair('세금 합계',money(result.totals.incomeTax+result.totals.localTax)),pair('보험 후 최종 실수령액','보험 공제 확인 필요'));
+  for(const g of result.bundles){const detail=el('details');detail.open=true;detail.append(el('summary',`${g.bundleId} · 지급 ${g.paymentDate} · ${g.rows.length}일 · ${g.workerId} / ${g.employerId}`));
+   for(const r of g.rows)detail.append(el('p',`${r.workDate} | 과세 급여 ${money(r.taxable)} − 일 공제 ${money(r.deduction)} = ${money(r.excess)} → 6% ${money(r.statutoryTax)} − 55% 세액공제 ${money(r.credit)} = ${money(r.unroundedTax)} (합산 전 절사 없음)`));
+   detail.append(pair('일별 세액 합계',money(g.unroundedTax)),pair('1,000원 미만 소액부징수',g.exempt?'적용 · 소득세 0원':'미적용'),pair('묶음 합계 10원 미만 버림 → 소득세',money(g.incomeTax)),pair('소득세 × 10%, 10원 미만 버림 → 지방소득세',money(g.localTax)),pair('사회보험 등 다른 공제 전 지급액',money(g.netBeforeInsurance)));resultBody.append(detail);
   }
-  field.append(caption, select);
-  return { field, select };
-};
-
-function installInputs() {
-  const fields = [...document.querySelectorAll('.field-grid .field')];
-  const findField = (prefix) => fields.find((field) => field.querySelector('label')?.textContent.trim().startsWith(prefix));
-  const basisField = findField('입력 금액 기준');
-  const periodField = findField('급여 기간');
-  const employmentField = findField('근로 형태 확인');
-  if (!basisField || !periodField || !employmentField) return null;
-
-  const basis = selectControl('pay-basis', '입력 금액 기준', [
-    ['', '선택해 주세요'], ['pretax', '세전 금액'], ['after-tax', '세후 금액'],
-  ]);
-  const period = selectControl('pay-period', '급여 기간', [
-    ['', '선택해 주세요'], ['daily', '1일 일급'], ['aggregate', '기간 합계 (일급 산식 적용 불가)'],
-  ]);
-  const employment = selectControl('employment-type', '근로 형태 확인', [
-    ['', '선택해 주세요'], ['daily-worker', '세법상 일용근로자 확인'], ['other-or-unknown', '해당하지 않거나 미확인'],
-  ]);
-  basisField.append(basis.select);
-  periodField.append(period.select);
-  employmentField.append(employment.select);
-
-  const grid = document.querySelector('.field-grid');
-  const nonTaxable = numberField('non-taxable-pay', '비과세 금액 (일급)', '원');
-  const months = numberField('months-worked', '근로기간', '개월', '예: 1');
-  const monthlyDays = numberField('monthly-work-days', '월 근로일수', '일', '예: 8');
-  const monthlyHours = numberField('monthly-work-hours', '월 근로시간', '시간', '예: 60');
-  const monthlyIncome = numberField('monthly-income', '월 소득', '원', '예: 2,200,000');
-  const construction = selectControl('construction-site', '건설현장 근무 여부', [
-    ['', '선택해 주세요'], ['no', '아니요 / 해당 없음'], ['yes', '예 (현장 간 합산 검토 필요)'],
-  ]);
-  const group = selectControl('payout-group', '지급 묶음 확인', [
-    ['', '미확인'], ['single', '해당 일급 1건만 지급'], ['multiple', '여러 일급을 함께 지급'],
-  ]);
-  const insuranceHeading = document.createElement('p');
-  insuranceHeading.className = 'field-wide';
-  insuranceHeading.textContent = '사회보험 참고 입력 · 소득세 계산과 별도';
-  insuranceHeading.style.cssText = 'margin:4px 0 -8px;color:#687773;font-size:12px;font-weight:700';
-  grid.append(nonTaxable.field, insuranceHeading, months.field, monthlyDays.field, monthlyHours.field, monthlyIncome.field, construction.field, group.field);
-
-  const oldButton = document.querySelector('.form-footer .button-disabled');
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = 'button button-disabled';
-  button.id = 'calculate-pay';
-  button.textContent = '예상 기준 확인 →';
-  oldButton?.replaceWith(button);
-  return { basis: basis.select, period: period.select, employment: employment.select, button };
+ }
+ const insurance=assessInsurance(input.insurance);insuranceBody.replaceChildren();
+ for(const [key,label]of [['pension','국민연금'],['health','건강보험'],['employment','고용보험']]){const r=insurance[key],card=el('article',undefined,'insurance-card');card.append(el('h4',label+' · '+stateLabel(r.status)),el('p',r.reason));if(r.base!==undefined)card.append(pair('기준소득월액',money(r.base)));if(r.unroundedEstimate!==undefined)card.append(pair('월 근로자 부담 참고액 · 절사 전',money(r.unroundedEstimate)));if(r.ltcUnroundedEstimate!==undefined)card.append(pair('장기요양 참고액 · 절사 전',money(r.ltcUnroundedEstimate)));if(r.rate!==undefined)card.append(pair('확인한 근로자 요율',(r.rate*100).toFixed(2)+'%'));card.append(pair('지급액 자동 공제','미적용 · 월 고지/끝수/배분 확인 필요'));const b=insurance.billed?.[key];if(b)card.append(pair('사용자가 기록한 공단 월 고지액',money(b.amount)));if(key==='health'&&insurance.billed?.ltc)card.append(pair('장기요양 공단 월 고지액',money(insurance.billed.ltc.amount)));insuranceBody.append(card);}
+ insuranceBody.append(el('p',insurance.workersCompensation.reason),el('p','월별 추정액·고지액을 한 지급 건에 전액 공제하지 않습니다. 보험 적용월과 급여 귀속·지급월도 구분합니다.'));
 }
-
-function readInput() {
-  return {
-    grossPay: byId('gross-pay')?.value,
-    nonTaxablePay: byId('non-taxable-pay')?.value,
-    payBasis: byId('pay-basis')?.value,
-    payPeriod: byId('pay-period')?.value,
-    employmentType: byId('employment-type')?.value,
-    workDays: byId('work-days')?.value,
-    workHours: byId('work-hours')?.value,
-  };
+function demo(){if(read().rows.some(r=>r.workDate||r.gross)){savedStatus.textContent='현재 입력을 보존했습니다. 새로고침한 빈 화면에서 검증 예시를 불러오세요.';return;}$('worker-id').value='검증 근로자';$('employer-id').value='검증 사업장';$('income-type').value='daily';$('tax-occupation').value='general';$('tax-confirmed').checked=true;tbody.replaceChildren();for(let n=1;n<=5;n++)addDay({workDate:'2026-10-0'+n,gross:'200000',nonTaxable:'0',periodStart:'2026-10-01',periodEnd:'2026-10-05',paymentDate:'2026-10-10',bundleId:'공식예시-일괄1회'});savedStatus.textContent='검증용 예시입니다. 실제 지급 기록으로 저장하지 않았습니다.';render();}
+function restore(input){$('income-type').value=input.incomeType;$('tax-occupation').value=input.taxOccupation;$('pay-basis').value=input.payBasis;for(const [id,key]of [['tax-confirmed','taxDailyConfirmed'],['monthly-salary','monthlySalary'],['long-contract','longContract']])$(id).checked=input[key]===true;$('worker-id').value=input.rows[0]?.workerId??'';$('employer-id').value=input.rows[0]?.employerId??'';tbody.replaceChildren();input.rows.forEach(addDay);const i=input.insurance??{};for(const [id,key]of [['insurance-month','month'],['monthly-days','monthlyDays'],['monthly-hours','monthlyHours'],['monthly-income','monthlyIncome'],['age','age'],['assessed-income','assessedMonthlyIncome'],['health-remuneration','healthMonthlyRemuneration']])$(id).value=i[key]??'';for(const [id,key]of [['continuous-month','continuousMonth'],['construction','construction'],['ei-daily','eiDaily'],['ei-workplace','eiCoveredWorkplace']])$(id).value=typeof i[key]==='boolean'?(i[key]?'yes':'no'):'';for(const [id,key]of [['all-sites','allSitesIncluded'],['insurance-ordinary','domesticOrdinary'],['ei-exceptions','eiExceptionsCleared']])$(id).checked=i[key]===true;for(const k of ['pension','health','ltc','employment'])$('billed-'+k).value=i.billed?.[k]??'';render();}
+function refreshHistory(){const doc=loadLedger(localStorage);history.replaceChildren(el('option','저장 버전 선택'));history.firstChild.value='';doc.revisions.forEach((r,i)=>{const o=el('option',`${i+1} · ${new Date(r.savedAt).toLocaleString('ko-KR')} · ${r.input.rows[0].workerId}`);o.value=String(i);history.append(o);});return doc;}
+function start(){
+ document.querySelector('.field-grid').replaceChildren();const card=document.querySelector('.form-card');card.replaceChildren();ledgerInput=el('div',undefined,'field-grid');card.append(ledgerInput);
+ ledgerInput.append(select('income-type','소득 구분',[['unknown','먼저 확인해주세요'],['daily','일용근로소득'],['ordinary','일반 근로소득'],['business','프리랜서 사업소득']]),select('tax-occupation','세법 적용 업종',[['','선택'],['general','일반'],['construction','건설'],['special','항만·기타 특수업종 (별도 확인)']]),select('pay-basis','입력 기준',[['pretax','세전 → 세금 공제 후'],['after-tax','세후 역산 (지원 전)']]),field('worker-id','근로자 관리 ID'),field('employer-id','지급 사업장 ID'),check('tax-confirmed','거주자이며 계약·실제 근로 형태를 검토하여 세법상 일용 해당을 확인했습니다.'),check('monthly-salary','일수·성과와 무관한 월정액 급여입니다 (일반 근로 검토).'),check('long-contract','같은 고용주와 일반 3개월 / 건설 1년 이상 계약·계속근로에 해당합니다 (일반 근로 검토).'));
+ card.append(el('p','일용 명칭만으로 확정하지 않습니다. 사회보험 일용 판단과 별개입니다. 하루의 과세 급여·비과세를 입력하고, 함께 지급하는 날들은 같은 지급 묶음 ID를 사용하세요.','ledger-help'));
+ const wrap=el('div',undefined,'ledger-scroll'),table=el('table',undefined,'ledger-table'),head=el('thead'),hr=el('tr');columns.forEach(c=>hr.append(el('th',c[1])));hr.append(el('th','편집'));head.append(hr);tbody=el('tbody');table.append(head,tbody);wrap.append(table);card.append(wrap);addDay();
+ const actions=el('div',undefined,'ledger-actions');actions.append(button('근무일 추가',()=>{addDay();render();}),button('공식 검증 예시 보기',demo),button('계산 확인',render));card.append(actions);
+ const storage=el('div',undefined,'ledger-storage');history=el('select');history.setAttribute('aria-label','저장 버전');savedStatus=el('p','입력은 이 브라우저에 버전별 저장합니다. 서버·다른 기기와 공유되지 않습니다.','ledger-help');savedStatus.setAttribute('role','status');
+ storage.append(button('지급 기록 저장',()=>{try{saveLedger(localStorage,read());refreshHistory();savedStatus.textContent='이 브라우저에 새 버전으로 저장했습니다. 이전 기록도 보존됩니다.';}catch(e){savedStatus.textContent=e.message;}}),history,button('선택 버전 불러오기',()=>{try{if(history.value==='')return;const d=loadLedger(localStorage);restore(d.revisions[Number(history.value)].input);savedStatus.textContent='선택 버전을 불러왔습니다.';}catch(e){savedStatus.textContent=e.message;}}),button('저장 기록 JSON 다운로드',()=>{try{const data=loadLedger(localStorage);const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'})),a=el('a');a.href=url;a.download='haru-payroll-records.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}catch(e){savedStatus.textContent=e.message;}}));card.append(storage,savedStatus);
+ const result=el('section',undefined,'calculation-details');result.append(el('h3','지급 묶음별 계산 근거'));resultBody=el('div');result.append(resultBody);document.querySelector('.result-card').after(result);
+ const insurance=el('section',undefined,'content-section');insurance.append(el('h2','사회보험 · 원천징수와 별도로 확인'),el('p','보험은 해당 근로자의 월 전체 자료로 판단합니다. 과세대상 일급이나 이번 지급 묶음만으로 가입·보험료를 확정하지 않습니다.'));const grid=el('div',undefined,'field-grid');
+ grid.append(field('insurance-month','보험 적용월','month'),field('age','연령','number'),field('monthly-days','월 근로일수','number'),field('monthly-hours','월 근로시간','number'),field('monthly-income','월 전체 소득(원)','number'),boolSelect('continuous-month','1개월 이상 계속근로 확인'),boolSelect('construction','건설 일용 여부'),field('assessed-income','신고·결정 기준소득월액(원)','number'),field('health-remuneration','건강보험 월 보수(원)','number'),check('all-sites','건설현장 우선 판단 후 동일 사업장 합산 자료까지 확인했습니다.'),check('insurance-ordinary','국내 일반 적용 대상이며 외국인·연령·공적연금 등 특례가 없음을 확인했습니다.'),boolSelect('ei-daily','고용보험상 1개월 미만 일용 해당'),boolSelect('ei-workplace','고용보험 적용 사업장'),check('ei-exceptions','고용보험 적용 제외·65세 이후 신규고용·외국인 등 예외를 검토했습니다.'));
+ for(const [k,l]of [['pension','국민연금'],['health','건강보험'],['ltc','장기요양'],['employment','고용보험']])grid.append(field('billed-'+k,l+' 공단 월 고지액(선택, 원)','number'));insuranceBody=el('div',undefined,'insurance-results');insurance.append(grid,insuranceBody);document.querySelector('#result').after(insurance);
+ const sourcePanel=el('details',undefined,'rule-sources');sourcePanel.append(el('summary','공식 출처·규칙 적용기간·확인일'));sourcePanel.append(el('p',`이 버전 계산 지원: ${taxRules.verifiedFrom} ~ ${taxRules.verifiedTo}. 확인일: ${taxRules.checkedAt}. 법령 버전 시행일과 최초 규칙 시행일은 구분합니다.`));for(const s of Object.values(sources)){const p=el('p'),a=el('a',s.title);a.href=s.url;a.target='_blank';a.rel='noopener noreferrer';p.append(a,el('span',` · 자료 시행 ${s.effectiveStart??'원문 미표시'}${s.effectiveEnd?' ~ '+s.effectiveEnd:''} · 확인 ${s.checkedAt}. ${s.note}`));sourcePanel.append(p);}insurance.after(sourcePanel);
+ document.querySelector('.take-home .result-label').textContent='사회보험 등 다른 공제 전 지급액';document.querySelector('.result-caption').textContent='급여 총액 − 소득세 − 지방소득세';document.querySelector('.hero-meta').textContent='2026년 원천징수 계산 · 사회보험 항목별 확인';document.querySelector('.hero-description').textContent='근무일별 급여를 실제 지급 묶음으로 계산하고 기록합니다. 사회보험은 별도 확인합니다.';document.querySelector('#result-title').textContent='원천징수 계산 결과';document.querySelector('.result-heading .section-subtitle').textContent='일별 산식 → 지급 묶음 합산 → 소액부징수 → 소득세·지방소득세 끝수 순서';document.querySelector('.estimate-badge').textContent='공식 사례 대조';document.querySelector('.state-grid').hidden=true;document.querySelector('.basis-disclaimer').textContent='원천징수 확인일 2026-10-23 · 보험 취득·상실, 부과 단위와 끝수, 특례는 항목별 확인 필요. 세후 역산은 제공하지 않습니다.';document.querySelector('.footer-disclaimer').textContent='2026년 원천징수 · 사회보험 별도 검토';document.querySelector('.input-section .section-subtitle').textContent='한 행은 한 근무일입니다. 실제 지급 방식을 임의로 분할하지 마세요.';document.querySelector('.required-note').textContent='2026년 세전 급여';document.querySelector('.notice-tag').textContent='실제 입력 계산';
+ document.addEventListener('input',e=>{if(e.target.matches('input,select'))render();});document.addEventListener('change',e=>{if(e.target.matches('input,select')&&e.target!==history)render();});try{refreshHistory();}catch(e){savedStatus.textContent=e.message;}render();
 }
-
-function won(value) {
-  return new Intl.NumberFormat('ko-KR', { maximumFractionDigits: 3 }).format(value);
-}
-function addResultPanel() {
-  const panel = document.createElement('div');
-  panel.className = 'state-card review-state';
-  panel.id = 'calculation-details';
-  panel.setAttribute('aria-live', 'polite');
-  panel.style.marginTop = '14px';
-  const heading = document.createElement('h3');
-  heading.textContent = '계산 참고값 · 최종 지급액 아님';
-  const details = document.createElement('div');
-  details.id = 'calculation-details-body';
-  panel.append(heading, details);
-  document.querySelector('.result-card')?.after(panel);
-  return details;
-}
-function row(label, value) {
-  const item = document.createElement('div');
-  item.className = 'deduction-row';
-  const name = document.createElement('span');
-  name.textContent = label;
-  const amount = document.createElement('strong');
-  amount.textContent = value;
-  item.append(name, amount);
-  return item;
-}
-
-function start() {
-  const controls = installInputs();
-  if (!controls) return;
-  const detailBody = addResultPanel();
-  const statusNotice = document.querySelector('.notice-bar p');
-  const netAmount = document.querySelector('.take-home > strong');
-  const rows = [...document.querySelectorAll('.deduction-list .deduction-row')];
-
-  const render = () => {
-    const result = calculateDailyIncomeTax(readInput());
-    const pension = assessNationalPension({
-      monthsWorked: byId('months-worked')?.value,
-      monthlyWorkDays: byId('monthly-work-days')?.value,
-      monthlyWorkHours: byId('monthly-work-hours')?.value,
-      monthlyIncome: byId('monthly-income')?.value,
-      constructionSite: byId('construction-site')?.value === 'yes' ? true : byId('construction-site')?.value === 'no' ? false : undefined,
-    });
-    const insurance = assessOtherInsurance();
-    detailBody.replaceChildren();
-
-    if (!result.canCalculate) {
-      const message = result.reason === 'daily-worker-unconfirmed'
-        ? '세법상 일용근로자 여부가 확인되지 않아 일용근로소득 산식 참고값을 계산하지 않습니다.'
-        : result.reason === 'not-daily-pay'
-          ? '기간 합계 금액에는 일급 산식을 적용하지 않습니다. 일급을 별도로 확인해 주세요.'
-          : result.reason === 'not-pretax'
-            ? '세전 금액으로 확인된 경우에만 산식 참고값을 표시합니다.'
-            : result.reason === 'non-taxable-exceeds-gross'
-              ? '비과세 금액이 급여 총액을 초과합니다. 입력값을 확인해 주세요.'
-              : '필수 입력 또는 금액 형식을 확인해 주세요.';
-      if (statusNotice) statusNotice.textContent = message;
-      if (netAmount) netAmount.innerHTML = '— <small>원</small>';
-      for (const item of rows) item.querySelector('strong').textContent = '— 원';
-      detailBody.append(row('소득세 산식 참고값', '계산 보류'), row('지방소득세', '미확정 · 계산 보류'), row('최종 실수령액', '산출하지 않음'));
-      controls.button.classList.add('button-disabled');
-      return;
-    }
-
-    if (statusNotice) statusNotice.textContent = '반올림 전 산식 참고값만 표시합니다. 지급 묶음·원 단위 처리와 지방소득세 규칙이 확정되지 않아 최종 세액 및 실수령액은 보류합니다.';
-    if (netAmount) netAmount.innerHTML = '보류 <small>최종액 미확정</small>';
-    const groupValue = byId('payout-group')?.value;
-    const groupingStatus = groupValue === 'single'
-      ? '단일 지급으로 선택됨; 실제 지급 자료 확인 필요'
-      : groupValue === 'multiple'
-        ? '복수 일급 합산 필요; 지급별 자료 미입력'
-        : '지급 묶음 미확인';
-
-    for (const item of rows) {
-      const label = item.querySelector('span')?.textContent ?? '';
-      const strong = item.querySelector('strong');
-      strong.textContent = deductionValue(label, result);
-    }
-    detailBody.append(
-      row('과세대상 일급', `${won(result.taxableDailyPay)}원`),
-      row('근로소득공제 참고액', `${won(result.earnedIncomeDeduction)}원`),
-      row('산출세액 참고값 (6%)', `${won(result.statutoryTaxBeforeCreditFormulaValue)}원`),
-      row('근로소득세액공제 참고값 (55%)', `${won(result.earnedIncomeTaxCreditFormulaValue)}원`),
-      row('소득세 산식 참고값 (반올림 전)', `${won(result.incomeTaxFormulaValue)}원`),
-      row('산식 참고값 기준 1,000원 미만', result.smallCollectionFormulaReference ? '예 · 지급묶음 최종 판단 아님' : '아니요 · 지급묶음 확인 필요'),
-      row('지급 묶음 상태', groupingStatus),
-      row('지방소득세 산정액', '미확정 · 원 단위/적용 순서 확인 필요'),
-      row('최종 소득세 / 실수령액', '보류 · 확정 산출하지 않음'),
-      row('국민연금 참고 판정', pension.status === 'potentially-applicable-review-required' ? '적용 가능성 있음 · 공단 기준 확인 필요' : pension.status === 'thresholds-not-met-under-supplied-rule' ? '제공 기준 문턱 미충족' : '미확정 / 추가 확인 필요'),
-      row('국민연금 판정 근거', pension.reason),
-      row('건강보험 / 고용보험 / 산재보험', `${insurance.healthInsurance.status} · 보험료 산출 안 함`),
-    );
-    controls.button.classList.add('button-disabled');
-  };
-
-  controls.button.addEventListener('click', render);
-  bindCalculationInputs(document.querySelectorAll('#gross-pay, #work-days, #work-hours, #non-taxable-pay, #pay-basis, #pay-period, #employment-type, #months-worked, #monthly-work-days, #monthly-work-hours, #monthly-income, #construction-site, #payout-group'), render);
-}
-
-if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });
-else start();
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();

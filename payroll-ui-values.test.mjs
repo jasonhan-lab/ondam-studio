@@ -1,8 +1,10 @@
-import {test} from 'node:test';
-import assert from 'node:assert/strict';
-import {deductionValue,bindCalculationInputs} from './payroll-ui-values.mjs';
-const result={grossDailyPay:200000,incomeTaxFormulaValue:1350};
-test('local income tax stays unconfirmed instead of matching income tax substring',()=>{assert.equal(deductionValue('지방소득세 적용 조건 검토 필요',result),'미확정');assert.match(deductionValue('소득세 산식 검토 필요',result),/1,350/);});
-test('unconfirmed insurance and totals never become final deduction amounts',()=>{assert.equal(deductionValue('예상 공제 합계',result),'미확정');assert.match(deductionValue('사회보험료',result),/미확인/);});
-test('typing refreshes without a button click',()=>{const field=new EventTarget();let calls=0;bindCalculationInputs([field],()=>calls++);field.dispatchEvent(new Event('input'));assert.equal(calls,1);});
-test('selection change refreshes without requiring an earlier input event',()=>{const select=new EventTarget();let calls=0;bindCalculationInputs([select],()=>calls++);select.dispatchEvent(new Event('change'));assert.equal(calls,1);});
+import test from 'node:test';import assert from 'node:assert/strict';
+import {saveLedger,loadLedger,storageKey} from './payroll-storage.mjs';
+import {calculateLedger} from './payroll-calculator.mjs';
+const input={incomeType:'daily',taxOccupation:'general',taxDailyConfirmed:true,payBasis:'pretax',rows:[{workerId:'worker',employerId:'company',workDate:'2026-10-01',gross:200000,nonTaxable:0,periodStart:'2026-10-01',periodEnd:'2026-10-05',paymentDate:'2026-10-10',bundleId:'once'}],insurance:{month:'2026-10',billed:{health:123}}};
+function store(){const m=new Map();return {getItem:k=>m.get(k)??null,setItem:(k,v)=>m.set(k,v)};}
+test('save/load preserves work/accrual/payment dates, bundle, classification, insurance and trace',()=>{const s=store();saveLedger(s,input,'2026-10-23T00:00:00Z');const d=loadLedger(s);assert.deepEqual(d.revisions[0].input,input);assert.deepEqual(d.revisions[0].result,calculateLedger(input));});
+test('revision saving preserves previous version and snapshot despite later edits',()=>{const s=store(),i=structuredClone(input);saveLedger(s,i);i.rows[0].gross=250000;saveLedger(s,i);const d=loadLedger(s);assert.equal(d.revisions.length,2);assert.equal(d.revisions[0].input.rows[0].gross,200000);assert.equal(d.revisions[1].input.rows[0].gross,250000);});
+test('invalid input does not overwrite stored data',()=>{const s=store();saveLedger(s,input);const before=s.getItem(storageKey);assert.throws(()=>saveLedger(s,{...input,rows:[]}));assert.equal(s.getItem(storageKey),before);});
+test('corrupt or unsupported saved data preserved with explicit error',()=>{for(const raw of ['bad','{"version":2,"revisions":[]}','{"version":1,"revisions":[{"savedAt":"x","input":null}]}']){const s=store();s.setItem(storageKey,raw);assert.throws(()=>saveLedger(s,input));assert.equal(s.getItem(storageKey),raw);}});
+test('storage quota/access failure surfaces instead of claiming success',()=>{assert.throws(()=>saveLedger({getItem:()=>null,setItem:()=>{throw Error('quota');}},input),/quota/);});

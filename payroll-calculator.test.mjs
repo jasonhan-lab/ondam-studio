@@ -1,107 +1,25 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import {
-  calculateDailyIncomeTax,
-  assessPayoutGroup,
-  assessNationalPension,
-  assessOtherInsurance,
-} from './payroll-calculator.mjs';
-
-const valid = (overrides = {}) => ({
-  grossPay: '200,000', nonTaxablePay: '0', payBasis: 'pretax', payPeriod: 'daily',
-  employmentType: 'daily-worker', workDays: '1', workHours: '8', ...overrides,
-});
-
-test('daily pay at 150,000 has zero formula reference and never claims final tax', () => {
-  const result = calculateDailyIncomeTax(valid({ grossPay: '150000' }));
-  assert.equal(result.incomeTaxFormulaValue, 0);
-  assert.equal(result.finalWithholdingTax, null);
-  assert.equal(result.netPay, null);
-});
-
-test('daily pay at 200,000 gives 1,350 won unrounded formula reference', () => {
-  const result = calculateDailyIncomeTax(valid());
-  assert.equal(result.incomeTaxFormulaValue, 1_350);
-  assert.equal(result.taxableDailyPay, 200_000);
-  assert.equal(result.finalLocalIncomeTax, null);
-});
-
-test('187,000 daily taxable pay is exactly 999 won before won rounding', () => {
-  const result = calculateDailyIncomeTax(valid({ grossPay: '187000' }));
-  assert.equal(result.incomeTaxFormulaValue, 999);
-  assert.equal(result.smallCollectionFormulaReference, true);
-  assert.equal(result.finalWithholdingTax, null);
-});
-
-test('non-taxable amount is separated from taxable daily pay', () => {
-  const result = calculateDailyIncomeTax(valid({ grossPay: '200000', nonTaxablePay: '50000' }));
-  assert.equal(result.taxableDailyPay, 150_000);
-  assert.equal(result.incomeTaxFormulaValue, 0);
-});
-
-test('non-taxable amount greater than gross pay is rejected', () => {
-  assert.equal(calculateDailyIncomeTax(valid({ grossPay: '100000', nonTaxablePay: '100001' })).reason, 'non-taxable-exceeds-gross');
-});
-
-test('after-tax, aggregate-period, and non-daily-worker cases do not calculate', () => {
-  assert.equal(calculateDailyIncomeTax(valid({ payBasis: 'after-tax' })).reason, 'not-pretax');
-  assert.equal(calculateDailyIncomeTax(valid({ payPeriod: 'aggregate' })).reason, 'not-daily-pay');
-  assert.equal(calculateDailyIncomeTax(valid({ employmentType: 'other-or-unknown' })).reason, 'daily-worker-unconfirmed');
-});
-
-test('invalid, negative, fractional-won, and unsafe gross amounts are rejected', () => {
-  for (const grossPay of ['-1', '12.5', 'abc', String(Number.MAX_SAFE_INTEGER + 1)]) {
-    assert.equal(calculateDailyIncomeTax(valid({ grossPay })).canCalculate, false);
-  }
-});
-
-test('payout-group small-collection reference aggregates before comparison', () => {
-  const payment = valid({ grossPay: '187000' });
-  const group = assessPayoutGroup([payment, payment]);
-  assert.equal(group.formulaTotal, 1_998);
-  assert.equal(group.smallCollectionFormulaReference, false);
-  assert.equal(group.finalWithholdingTax, null);
-});
-
-test('missing payout group does not produce a withholding amount', () => {
-  assert.equal(assessPayoutGroup([]).finalWithholdingTax, null);
-  assert.equal(assessPayoutGroup([]).canAssess, false);
-});
-
-test('NPS input values do not imply eligibility while official criteria are unverified', () => {
-  const belowPriorThresholds = assessNationalPension({
-    monthsWorked: 1, monthlyWorkDays: 7, monthlyWorkHours: 59, monthlyIncome: 2_199_999, constructionSite: false,
-  });
-  const abovePriorThresholds = assessNationalPension({
-    monthsWorked: 1, monthlyWorkDays: 8, monthlyWorkHours: 60, monthlyIncome: 2_200_000, constructionSite: false,
-  });
-
-  for (const result of [belowPriorThresholds, abovePriorThresholds]) {
-    assert.equal(result.status, 'review-required');
-    assert.equal(result.reason, 'official-eligibility-criteria-unverified');
-    assert.equal(result.monthlyCriteria, null);
-    assert.equal(result.premium, null);
-  }
-});
-
-test('NPS missing inputs and construction-site cases remain review-only', () => {
-  const missing = assessNationalPension({});
-  assert.equal(missing.status, 'review-required');
-  assert.equal(missing.reason, 'nps-inputs-incomplete');
-  assert.equal(missing.premium, null);
-
-  const constructionSite = assessNationalPension({
-    monthsWorked: 1, monthlyWorkDays: 8, monthlyWorkHours: 60, monthlyIncome: 2_200_000, constructionSite: true,
-  });
-  assert.equal(constructionSite.status, 'review-required');
-  assert.equal(constructionSite.reason, 'official-eligibility-criteria-unverified');
-  assert.equal(constructionSite.premium, null);
-});
-
-test('other social insurance remains unverified and has no premium amounts', () => {
-  const result = assessOtherInsurance();
-  assert.equal(result.healthInsurance.status, 'unverified');
-  assert.equal(result.employmentInsurance.status, 'unverified');
-  assert.equal(result.workersCompensation.status, 'unverified');
-  assert.equal(result.healthInsurance.premium, null);
-});
+import test from 'node:test';import assert from 'node:assert/strict';
+import {calculateLedger,classifyTax,dailyTax,validDate,wonInput} from './payroll-calculator.mjs';
+export const row=(n=1,gross=200000,bundleId='once')=>({workerId:'w',employerId:'e',workDate:`2026-10-${String(n).padStart(2,'0')}`,gross,nonTaxable:0,periodStart:'2026-10-01',periodEnd:'2026-10-31',paymentDate:'2026-11-01',bundleId});
+export const ledger=rows=>({incomeType:'daily',taxOccupation:'general',taxDailyConfirmed:true,payBasis:'pretax',rows});
+test('NTS official 200000 x 5 paid once: 6750 + 670, 992580 before insurance',()=>{const r=calculateLedger(ledger(Array.from({length:5},(_,i)=>row(i+1))));assert.equal(r.ok,true);assert.deepEqual(r.totals,{gross:1000000,incomeTax:6750,localTax:670,netBeforeInsurance:992580});assert.equal(r.finalNet,null);});
+test('187000 single: 999 exempt; two days paid together: 1990 + 190',()=>{assert.equal(calculateLedger(ledger([row(1,187000)])).totals.incomeTax,0);const r=calculateLedger(ledger([row(1,187000),row(2,187000)]));assert.equal(r.totals.incomeTax,1990);assert.equal(r.totals.localTax,190);});
+test('actual distinct payments remain separate; no invented grouping/splitting',()=>{const r=calculateLedger(ledger([row(1,187000,'a'),row(2,187000,'b')]));assert.equal(r.bundles.length,2);assert.equal(r.totals.incomeTax,0);});
+test('aggregate before 10-won truncation: 165000 x 4 -> 1620 not 1600',()=>assert.equal(calculateLedger(ledger([1,2,3,4].map(n=>row(n,165000)))).totals.incomeTax,1620));
+test('fractional won preserved across days with exact integer numerator',()=>{const r=calculateLedger(ledger([1,2,3,4].map(n=>row(n,165093))));assert.equal(r.bundles[0].unroundedTax,1630.044);assert.equal(r.totals.incomeTax,1630);assert.equal(r.totals.localTax,160);});
+test('threshold compares sum before truncation: 999.999 vs 1000.026',()=>{assert.equal(calculateLedger(ledger([row(1,187037)])).totals.incomeTax,0);assert.equal(calculateLedger(ledger([row(1,187038)])).totals.incomeTax,1000);});
+test('unequal days are not replaced by average wage',()=>{const r=calculateLedger(ledger([row(1,100000),row(2,300000)]));assert.equal(r.totals.incomeTax,4050);});
+test('daily exemption and non-taxable are independent',()=>{const r=calculateLedger(ledger([{...row(),gross:200000,nonTaxable:50000}]));assert.equal(r.totals.incomeTax,0);assert.equal(r.totals.netBeforeInsurance,200000);assert.equal(dailyTax(100000,0).deduction,100000);});
+for(const incomeType of ['business','ordinary','unknown'])test('does not mix income category '+incomeType,()=>assert.equal(calculateLedger({...ledger([row()]),incomeType}).ok,false));
+test('monthly salary / long contract cannot be forced to daily by checkbox',()=>{for(const field of ['monthlySalary','longContract'])assert.equal(calculateLedger({...ledger([row()]),[field]:true}).ok,false);});
+test('unconfirmed classification and special harbour not silently calculated',()=>{assert.equal(classifyTax({...ledger([]),taxDailyConfirmed:false}).status,'review-required');assert.equal(calculateLedger({...ledger([row()]),taxOccupation:'special'}).ok,false);});
+test('net-to-gross blocked even when daily category is confirmed',()=>assert.equal(calculateLedger({...ledger([row()]),payBasis:'after-tax'}).ok,false));
+test('duplicate same workday across payment bundles rejected to avoid double deduction',()=>assert.equal(calculateLedger(ledger([row(1,200000,'a'),row(1,200000,'b')])).ok,false));
+test('same ID for different people or employers never combines their taxes',()=>{for(const key of ['workerId','employerId']){const r=calculateLedger(ledger([row(1,187000),{...row(1,187000),[key]:'different'}]));assert.equal(r.bundles.length,2);assert.equal(r.totals.incomeTax,0);}});
+test('payment date distinct from accrual/work; same bundle date must agree',()=>{assert.equal(calculateLedger(ledger([row()])).ok,true);assert.equal(calculateLedger(ledger([row(1),{...row(2),paymentDate:'2026-11-02'}])).ok,false);});
+test('accrual interval required and must contain workday',()=>{for(const edit of [{periodStart:''},{periodStart:'2026-10-02'},{periodEnd:'2026-09-30'}])assert.equal(calculateLedger(ledger([{...row(),...edit}])).ok,false);});
+test('unsupported years, missing identity and prepayments have explicit error',()=>{for(const edit of [{workDate:'2025-10-01',periodStart:'2025-10-01'},{paymentDate:'2027-01-01'},{workerId:''},{bundleId:''},{paymentDate:'2026-09-30'}])assert.equal(calculateLedger(ledger([{...row(),...edit}])).ok,false);});
+test('invalid currency never coerced to zero or rounded silently',()=>{for(const v of ['',null,-1,1.5,'1,2','2e5',NaN,Infinity,100000000001])assert.equal(wonInput(v),null);assert.equal(wonInput('200,000'),200000);assert.equal(calculateLedger(ledger([{...row(),nonTaxable:200001}])).ok,false);});
+test('calendar rejects impossible dates',()=>{assert.equal(validDate('2026-02-30'),false);assert.equal(validDate('2026-02-28'),true);});
+test('malformed and empty ledger return errors',()=>{for(const i of [null,ledger([]),ledger([null])])assert.equal(calculateLedger(i).ok,false);});
+test('all sums reconcile and never deduct employer insurance',()=>{for(let g=150000;g<=550000;g+=173){const r=calculateLedger(ledger([row(1,g),row(2,g+61)]));const t=r.totals;assert.equal(t.gross-t.incomeTax-t.localTax,t.netBeforeInsurance);assert.equal(t.incomeTax%10,0);assert.equal(t.localTax%10,0);assert.ok(t.netBeforeInsurance>=0);}});
