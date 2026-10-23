@@ -1,3 +1,4 @@
+import {deductionValue,bindCalculationInputs} from './payroll-ui-values.mjs';
 import {
   calculateDailyIncomeTax,
   assessNationalPension,
@@ -181,11 +182,7 @@ function start() {
     for (const item of rows) {
       const label = item.querySelector('span')?.textContent ?? '';
       const strong = item.querySelector('strong');
-      if (label.includes('급여 총액')) strong.textContent = `${won(result.grossDailyPay)}원 (총액)`;
-      else if (label.includes('소득세')) strong.textContent = `${won(result.incomeTaxFormulaValue)}원 (산식 참고값)`;
-      else if (label.includes('지방소득세')) strong.textContent = '미확정';
-      else if (label.includes('사회보험료')) strong.textContent = '판정 참고 · 금액 미확인';
-      else strong.textContent = '미확정';
+      strong.textContent = deductionValue(label, result);
     }
     detailBody.append(
       row('과세대상 일급', `${won(result.taxableDailyPay)}원`),
@@ -205,10 +202,7 @@ function start() {
   };
 
   controls.button.addEventListener('click', render);
-  document.querySelectorAll('#gross-pay, #work-days, #work-hours, #non-taxable-pay, #pay-basis, #pay-period, #employment-type, #months-worked, #monthly-work-days, #monthly-work-hours, #monthly-income, #construction-site, #payout-group')
-    .forEach((element) => element.addEventListener('input', () => {
-      if (element.tagName === 'SELECT') element.addEventListener('change', render, { once: true });
-    }));
+  bindCalculationInputs(document.querySelectorAll('#gross-pay, #work-days, #work-hours, #non-taxable-pay, #pay-basis, #pay-period, #employment-type, #months-worked, #monthly-work-days, #monthly-work-hours, #monthly-income, #construction-site, #payout-group'), render);
 }
 
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });
