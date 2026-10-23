@@ -19,3 +19,6 @@ export const insurancePeriods=[
  {from:'2026-01-01',to:'2026-06-30',pensionLower:400000,pensionUpper:6370000,pensionEmployeeRate:.0475,healthEmployeeRate:.03595,ltcToHealthRatio:.009448/.0719,employmentEmployeeRate:.009},
  {from:'2026-07-01',to:'2026-12-31',pensionLower:410000,pensionUpper:6590000,pensionEmployeeRate:.0475,healthEmployeeRate:.03595,ltcToHealthRatio:.009448/.0719,employmentEmployeeRate:.009},
 ];
+
+sources.employmentScope={title:'고용24 · 적용 대상·65세 계속고용·일용 예외',url:'https://ei.work24.go.kr/ei/eih/eg/ei/eiEminsr/retrieveEi0102Info.do',checkedAt:'2026-10-23',effectiveStart:null};
+sources.employmentForeign={title:'고용24 · 체류자격별 가입과 부담 구분',url:'https://www.work24.go.kr/cm/c/f/1100/selecSystInfo.do?systId=SI00000419',checkedAt:'2026-10-23',effectiveStart:null};
