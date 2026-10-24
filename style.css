@@ -18,6 +18,12 @@
 .field-grid select,.field-grid input:not([type=checkbox]){width:100%;max-width:100%;padding:13px;border:1px solid #cdd9cb;border-radius:8px;background:#fff;color:#23493d;font:inherit;box-sizing:border-box}.field-grid .field{min-width:0}
 [hidden]{display:none!important}
 @media(max-width:650px){.calculation-details{padding:16px}.ledger-actions .button,.ledger-storage .button{flex:1 1 140px}.ledger-storage select{width:100%}.field-grid{grid-template-columns:minmax(0,1fr)}.take-home>strong{font-size:30px}}
+
+/* Keep STEP 02 amounts readable when labels or currency values are long. */
+.result-card,.take-home,.deduction-list,.deduction-row{min-width:0}
+.deduction-row{align-items:flex-start;flex-wrap:wrap}
+.deduction-row>strong{min-width:0;max-width:100%;white-space:normal;overflow-wrap:anywhere;text-align:right}
+@media(max-width:650px){.take-home>strong{max-width:100%;min-width:0;font-size:clamp(24px,8vw,36px);line-height:1.25;overflow-wrap:anywhere;word-break:keep-all}.deduction-row{gap:8px}.deduction-row>*{min-width:0;max-width:100%;overflow-wrap:anywhere}}
 .quick-fields input{font-size:22px!important;font-weight:700;padding:18px!important}.quick-fields label{font-size:16px}.quick-help{font-size:13px;line-height:1.8;color:#64776d;margin:14px 0}.quick-options{margin-top:20px;border-top:1px solid #e1e8df;padding-top:18px}.quick-options summary{cursor:pointer;font-weight:700;font-size:14px;color:#476353}.quick-options .field-grid{margin-top:18px}.button{border:1px solid #b9cfc0;background:#f0f6ed;color:#245b47;border-radius:9px;padding:12px 16px;font:inherit;font-size:13px;cursor:pointer}.button:hover{background:#e1eede}.ledger-actions select{max-width:100%;padding:10px;border:1px solid #cdd9cb;border-radius:8px}.quick-fields{margin-bottom:12px}
 
 /* Worker settings: compact main controls, optional exceptions and readable audit. */
@@ -29,3 +35,8 @@
 .quick-options pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px;background:#f1f5ed;padding:12px;border-radius:8px}
 .quick-options p,.deduction-row strong{overflow-wrap:anywhere}
 .deduction-row strong{max-width:66%}
+
+/* On phones, remove the decorative hero amount card so the main message stays fully visible. */
+@media(max-width:760px){.hero-art{display:none}.hero-copy{max-width:100%}}
+/* Use a flexible two-column deduction layout on small screens so labels and amounts wrap instead of clipping. */
+@media(max-width:650px){.deduction-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,40%);align-items:start;gap:8px 12px}.deduction-row>strong{max-width:100%;white-space:normal;overflow-wrap:anywhere;text-align:right}}
