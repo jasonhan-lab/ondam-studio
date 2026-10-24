@@ -1,0 +1,51 @@
+name: Test and deploy daypayroll
+
+on:
+  push:
+    branches:
+      - codex/ondam-bad24a22a7ee93a8169ebcd2
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: daypayroll-public-site
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.ref == 'refs/heads/codex/ondam-bad24a22a7ee93a8169ebcd2'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: read
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+      - name: Check syntax and run regression tests
+        run: node --test
+      - name: Build public files only
+        run: node tools/build-pages.mjs
+      - name: Check repository subpath and source hashes
+        run: node tools/verify-pages.mjs
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site/
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy checked site
+        id: deployment
+        uses: actions/deploy-pages@v4
